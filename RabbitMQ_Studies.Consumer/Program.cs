@@ -21,7 +21,7 @@ using System.Text;
 // Öncelikle Factory sınıfını oluşturalım. 
 // Bağlantı Oluşturma
 ConnectionFactory factory = new();
-factory.Uri = new("amqps://owqngobg:blIdj-tp5MdEGI55DGHK77IO6REX6hxx@stingray.rmq.cloudamqp.com/owqngobg");
+factory.Uri = new("");
 
 
 // Bağlantı Aktifleştirme ve Kanal Açma
