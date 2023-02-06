@@ -34,7 +34,7 @@ using IModel channel = connection.CreateModel();
 // Publisher üzerinde queue oluşturduk neden consumer da queue oluşturuyoruz?
 // RabbitMQ sunucusunu kullanırken publisher ve consumer aynı queue kullanılacaksa aynı queue kullanacaksa her ikisinde de oluşturulması gerekmektedir.
 // Publisher'daki ile birebir aynı yapılandırmada tanımlanmalıdır!
-channel.QueueDeclare(queue: "example-queue", exclusive: false);
+channel.QueueDeclare(queue: "example-queue", exclusive: false,durable:true );
 
 // Queue' a Mesaj Okuma
 // Kuyruktan mesaj okuyabilmek için bu channel üzerinde bir event operasyonu yapmamız lazım. Bunun için EventingBasicConsumer sınıfını kullanacağız.
@@ -73,6 +73,18 @@ EventingBasicConsumer consumer = new(channel);
 
 channel.BasicConsume(queue: "example-queue", autoAck: false, consumer: consumer);
 
+
+
+// MESAJ İŞLEME KONFİGURASYONU
+
+// RabbitMQ'da BasicQos metodu ile emsajların işleme hızını ve teslimat sırasını belirleyebiliriz. Böylece Fair Dispatch(Adil Dağıtım) özelliği konfigüre edilebilmektedir.
+// PrefetchSize : Bir consumer tarafından alınabilecek en büyük mesaj boyutunu byte cinsinden belirler. 0 => sınırsız demektir.,
+// PrefetchCount: Bir consumer tarafından aynı anda işleme alınabilecek mesaj sayısını belirler.
+// Global: Bu konfigurasyonun tüm consumerlar için mi yoksa sadece çağrı yapılan consumer için mi geçerli olacağını belirler.
+
+channel.BasicQos(0, 1, false);
+
+
 // Consumer'ın ne zaman mesaj geldi ise onu yakalayabilmek için bunu received etmesi lazım. Received etmek bir delegate olacağı için metod bağlamamız lazım.
 
 consumer.Received += (sender, e) =>
@@ -85,6 +97,20 @@ consumer.Received += (sender, e) =>
     channel.BasicAck(deliveryTag:e.DeliveryTag,multiple:false); //multiple:false diyerek sadece bu mesaja dair bildiride bulunacağımı ifade ediyorum.
 
     // BasicAck(deliveryTag: Bildirimde bulunacağımız mesaja dair unique bir değerdir.Bu mesajın bildirisinde bulunacağımı ifade ediyorum , multiple: false diyerek sadece bu mesaja dair bildiride bulunacağımı ifade ediyorum. );
-};
+
+    // Bazen, consumer'lar da istemsiz durumların dısında kendi kontrollerimiz neticesinde mesajları işlememek isteyebilir veyahut iligli mesajın işlenmesini başarıyla sonuclandırılmayacağımızı anlayabiliriz.
+    // böyle durumlarda "Basic.Nack" metodunu kullanarak RabbitMQ' ya bilgi verebilir ve mesajı tekrardan işletebiliriz.
+    // requeue parametresi oldukça önemli olacaktır. True değeri verilirse mesaj kuyruğa tekrardan işlenmek üzere eklenecek, false değerinde ise kuyruga eklenmeyerek silinecektir.
+    // Sadece bu mesajın işlenmeyeceğine dair RabbitMQ'ya bilgi verilmiş olunacaktır.
+    //  channel.BasicNack(deliveryTag:e.DeliveryTag,multiple:false,requeue:true);
+
+
+    // BasicCancel metodu işe verilen consumerTag değerine karşılık gelen queue'daki tüm mesajlar reddedilerek işlenmez.!
+    // channel.BasicCancel(consumerTag);
+
+    // BasicReject ile Tek bir mesajın işlenmesini reddetme : RabbitMQ'da kuyrukta bulunan mesajlardan belirli olanların consumer tarafından işlenmesini istemediğiniz durumlarda BasicReject metodunu kullanabiliriz.
+    // channel.BasicReject(deliveryTag:3, requeue : true); //  Vermiş olduğumuz değer hangi mesaja karşılık geliyorsa onun işlenmeyeceği bilgisini veriyoruz. 
+
+ };
 
 Console.Read();
